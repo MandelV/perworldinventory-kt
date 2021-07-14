@@ -7,13 +7,11 @@ import me.ebonjaeger.perworldinventory.service.BukkitService
 import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.configuration.file.YamlConfiguration
-import org.bukkit.plugin.Plugin
 import org.bukkit.scheduler.BukkitRunnable
 import java.io.File
 import java.io.IOException
 import java.util.stream.Collectors
 import javax.inject.Inject
-import kotlin.concurrent.thread
 
 class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
                                        private val bukkitService: BukkitService,
@@ -76,10 +74,6 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
      */
     fun getGroupFromWorld(world: String): Group
     {
-
-
-
-
         //if prefix and DEFAULT_GROUP is given then all world with name contains the prefix will be add to the default group.
         if (world.contains(settings.getProperty(PluginSettings.AUTO_GENERATED_WORLD_PREFIX)) && !settings.getProperty(PluginSettings.DEFAULT_GROUP).equals("")) {
             getGroup(settings.getProperty(PluginSettings.DEFAULT_GROUP))?.addWorld(world)
@@ -116,7 +110,7 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
 
 
 
-    fun removeWorldThatNotExists(){
+    private fun removeWorldsThatNotExist(){
 
         var allRegisteredWorld: MutableList<String> = mutableListOf()
         var worlds: MutableList<String> = mutableListOf()
@@ -125,13 +119,21 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
             worlds.add(world.name)
         }
 
-        groups.values.forEach { g -> allRegisteredWorld.addAll(g.worlds) }
+        groups.values.forEach { group -> allRegisteredWorld.addAll(group.worlds) }
 
         var worldToDelete = allRegisteredWorld.stream().filter { element -> !worlds.contains(element) }.collect(Collectors.toList())
 
+        worldToDelete.forEach { world -> groups.values.firstOrNull { it.containsWorld(world) }?.removeWorld(world) }
 
+    }
 
-        groups.values.forEach { g -> g.worlds.removeAll(worldToDelete) }
+    private fun removeGroupWithNoWorld(){
+
+       var group = groups.values.firstOrNull{ it.worlds.size == 0 }
+
+        if (group != null){
+            removeGroup(group.name)
+        }
     }
 
 
@@ -199,6 +201,7 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
     }
 
     override fun run() {
-        removeWorldThatNotExists()
+        removeWorldsThatNotExist()
+        removeGroupWithNoWorld()
     }
 }
