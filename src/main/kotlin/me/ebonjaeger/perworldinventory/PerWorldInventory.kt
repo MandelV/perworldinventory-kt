@@ -23,6 +23,8 @@ import org.bukkit.plugin.PluginDescriptionFile
 import org.bukkit.plugin.PluginManager
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.plugin.java.JavaPluginLoader
+import org.bukkit.scheduler.BukkitRunnable
+import org.bukkit.scheduler.BukkitTask
 import java.io.File
 import java.nio.file.Files
 import java.util.*
@@ -119,11 +121,13 @@ class PerWorldInventory : JavaPlugin
     {
         val groupManager = injector.getSingleton(GroupManager::class)
 
+
         if (!Files.exists(WORLDS_CONFIG_FILE.toPath()))
         {
             saveResource("worlds.yml", false)
         }
 
+        groupManager.runTaskTimer(this, 0, 40)
         groupManager.loadGroups()
     }
 

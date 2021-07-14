@@ -4,15 +4,20 @@ import me.ebonjaeger.perworldinventory.configuration.PluginSettings
 import me.ebonjaeger.perworldinventory.configuration.Settings
 import me.ebonjaeger.perworldinventory.initialization.PluginFolder
 import me.ebonjaeger.perworldinventory.service.BukkitService
+import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.configuration.file.YamlConfiguration
+import org.bukkit.plugin.Plugin
+import org.bukkit.scheduler.BukkitRunnable
 import java.io.File
 import java.io.IOException
+import java.util.stream.Collectors
 import javax.inject.Inject
+import kotlin.concurrent.thread
 
 class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
                                        private val bukkitService: BukkitService,
-                                       private val settings: Settings)
+                                       private val settings: Settings) : BukkitRunnable()
 {
 
     private val WORLDS_CONFIG_FILE = File(pluginFolder, "worlds.yml")
@@ -71,6 +76,14 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
      */
     fun getGroupFromWorld(world: String): Group
     {
+
+
+
+
+        //if prefix and DEFAULT_GROUP is given then all world with name contains the prefix will be add to the default group.
+        if (world.contains(settings.getProperty(PluginSettings.AUTO_GENERATED_WORLD_PREFIX)) && !settings.getProperty(PluginSettings.DEFAULT_GROUP).equals("")) {
+            getGroup(settings.getProperty(PluginSettings.DEFAULT_GROUP))?.addWorld(world)
+        }
         var group = groups.values.firstOrNull { it.containsWorld(world) }
         if (group != null) return group
 
@@ -88,6 +101,8 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
         return group
     }
 
+
+
     /**
      * Remove a world group.
      *
@@ -98,6 +113,28 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
         groups.remove(group.toLowerCase())
         ConsoleLogger.fine("Removed group '$group'")
     }
+
+
+
+    fun removeWorldThatNotExists(){
+
+        var allRegisteredWorld: MutableList<String> = mutableListOf()
+        var worlds: MutableList<String> = mutableListOf()
+
+        for(world in Bukkit.getWorlds()){
+            worlds.add(world.name)
+        }
+
+        groups.values.forEach { g -> allRegisteredWorld.addAll(g.worlds) }
+
+        var worldToDelete = allRegisteredWorld.stream().filter { element -> !worlds.contains(element) }.collect(Collectors.toList())
+
+
+
+        groups.values.forEach { g -> g.worlds.removeAll(worldToDelete) }
+    }
+
+
 
     /**
      * Load the groups configured in the file `worlds.yml` into memory.
@@ -159,5 +196,9 @@ class GroupManager @Inject constructor(@PluginFolder pluginFolder: File,
         config.set("$key.worlds", group.worlds.toList())
         config.set("$key.default-gamemode", group.defaultGameMode.toString())
         config.set("$key.respawnWorld", group.respawnWorld)
+    }
+
+    override fun run() {
+        removeWorldThatNotExists()
     }
 }
